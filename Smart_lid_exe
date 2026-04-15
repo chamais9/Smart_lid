@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Smart Temperature Lid — Interactive CAD</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c10;--surf:#0d1520;--surf2:#111e2e;--surf3:#162234;
+  --border:#1c2e42;--border2:#243650;
+  --text:#d4e0ee;--muted:#4e6a87;--faint:#1a2d42;
+  --purple:#8b7ff5;--purple2:#6356d4;--purple3:rgba(139,127,245,0.12);
+  --teal:#2dd4a0;--teal3:rgba(45,212,160,0.1);
+  --amber:#f5a623;--amber3:rgba(245,166,35,0.1);
+  --red:#f07070;--red3:rgba(240,112,112,0.1);
+  --blue:#5a9cf8;--blue3:rgba(90,156,248,0.12);
+  --white:#eef4fc;--green:#4ade80;
+  --r:6px;--r2:10px;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-sans:'Syne',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-mono);overflow:hidden}
+/* LAYOUT */
+.app{display:grid;grid-template-columns:220px 1fr 280px;grid-template-rows:52px 1fr 36px;height:100vh;overflow:hidden}
+/* HEADER */
+header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surf);border-bottom:1px solid var(--border);gap:12px;z-index:20}
+.h-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.h-logo-icon{width:30px;height:30px;border-radius:6px;background:var(--purple2);display:flex;align-items:center;justify-content:center;border:1px solid var(--purple)}
+.h-title{font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--white);letter-spacing:0.04em}
+.h-sub{font-size:9px;color:var(--muted);margin-top:1px;letter-spacing:0.06em}
+.h-chips{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid var(--border2);color:var(--muted);background:var(--surf2);white-space:nowrap;letter-spacing:0.04em}
+.chip.on{border-color:var(--teal);color:var(--teal);background:var(--teal3)}
+.h-actions{display:flex;gap:6px;flex-shrink:0}
+.btn{font-family:var(--font-mono);font-size:10px;padding:5px 12px;border-radius:4px;border:1px solid var(--border2);background:var(--surf2);color:var(--text);cursor:pointer;letter-spacing:0.04em;transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple3)}
+.btn.primary{background:var(--purple2);border-color:var(--purple);color:var(--white)}
+.btn.primary:hover{background:var(--purple);filter:brightness(1.1)}
+.btn.danger{border-color:var(--red);color:var(--red)}
+/* LEFT PANEL */
+.left-panel{background:var(--surf);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.left-panel::-webkit-scrollbar{width:3px}
+.left-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.panel-head{padding:10px 12px 8px;font-size:9px;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+/* COMPONENT TREE */
+.tree-group{border-bottom:1px solid var(--border)}
+.tree-layer{padding:7px 12px;font-size:10px;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .12s;letter-spacing:0.02em;user-select:none}
+.tree-layer:hover{background:var(--faint)}
+.tree-layer.l1{color:var(--purple)}
+.tree-layer.l2{color:#a89ff8}
+.tree-layer.l3{color:var(--teal)}
+.tree-item{padding:5px 12px 5px 28px;font-size:9.5px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .12s;color:var(--muted);letter-spacing:0.02em;user-select:none}
+.tree-item:hover{background:var(--faint);color:var(--text)}
+.tree-item.selected{background:var(--purple3);color:var(--purple);border-right:2px solid var(--purple)}
+.vis-toggle{width:14px;height:14px;border:1px solid var(--border2);border-radius:2px;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;transition:all .12s;cursor:pointer}
+.vis-toggle.on{background:var(--purple);border-color:var(--purple)}
+.vis-toggle.off{opacity:0.4}
+.tree-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* CANVAS AREA */
+.canvas-wrap{display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.view-tabs{display:flex;background:var(--surf);border-bottom:1px solid var(--border);padding:0 12px;flex-shrink:0}
+.vtab{font-size:10px;padding:10px 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;letter-spacing:0.05em;transition:all .15s;user-select:none;white-space:nowrap}
+.vtab:hover{color:var(--text)}
+.vtab.active{color:var(--white);border-bottom-color:var(--purple)}
+.vtab-num{color:var(--faint);margin-right:6px;font-size:9px}
+.vtab.active .vtab-num{color:var(--purple)}
+canvas{display:block;flex:1;width:100%;cursor:crosshair}
+/* RIGHT PANEL */
+.right-panel{background:var(--surf);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.right-panel::-webkit-scrollbar{width:3px}
+.right-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.prop-section{padding:12px;border-bottom:1px solid var(--border)}
+.prop-section h3{font-size:9px;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+.prop-name{font-family:var(--font-sans);font-size:14px;font-weight:600;color:var(--white);margin-bottom:4px}
+.prop-layer{font-size:9px;color:var(--muted);margin-bottom:12px;letter-spacing:0.04em}
+.dim-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+.dim-field label{display:block;font-size:8px;color:var(--muted);margin-bottom:4px;letter-spacing:0.06em;text-transform:uppercase}
+.dim-field input{width:100%;background:var(--surf2);border:1px solid var(--border2);border-radius:4px;padding:6px 8px;font-family:var(--font-mono);font-size:11px;color:var(--white);outline:none;transition:border-color .15s}
+.dim-field input:focus{border-color:var(--purple)}
+.dim-field.full{grid-column:1/-1}
+.note-area{width:100%;background:var(--surf2);border:1px solid var(--border2);border-radius:4px;padding:8px;font-family:var(--font-mono);font-size:10px;color:var(--text);resize:vertical;min-height:70px;outline:none;transition:border-color .15s;margin-top:4px;line-height:1.5}
+.note-area:focus{border-color:var(--amber)}
+.note-area::placeholder{color:var(--muted)}
+/* Spec rows */
+.spec-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--faint);font-size:9.5px}
+.spec-row:last-child{border-bottom:none}
+.sk{color:var(--muted)}
+.sv{color:var(--white);font-weight:500}
+.sv.p{color:var(--purple)}.sv.t{color:var(--teal)}.sv.a{color:var(--amber)}.sv.r{color:var(--red)}
+/* AI PANEL */
+.ai-panel{position:fixed;right:0;top:52px;bottom:36px;width:340px;background:var(--surf);border-left:1px solid var(--purple);z-index:50;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1)}
+.ai-panel.open{transform:translateX(0)}
+.ai-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ai-head h2{font-family:var(--font-sans);font-size:13px;color:var(--purple)}
+.ai-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ai-messages::-webkit-scrollbar{width:3px}
+.ai-messages::-webkit-scrollbar-thumb{background:var(--border2)}
+.msg{padding:8px 10px;border-radius:6px;font-size:10px;line-height:1.6;max-width:90%}
+.msg.user{background:var(--purple3);border:1px solid rgba(139,127,245,0.2);color:var(--text);align-self:flex-end;margin-left:auto}
+.msg.ai{background:var(--surf2);border:1px solid var(--border2);color:var(--text);align-self:flex-start}
+.msg.ai.thinking{opacity:0.5}
+.ai-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0}
+.ai-input{flex:1;background:var(--surf2);border:1px solid var(--border2);border-radius:4px;padding:7px 10px;font-family:var(--font-mono);font-size:10px;color:var(--text);outline:none}
+.ai-input:focus{border-color:var(--purple)}
+.ai-quick{display:flex;flex-wrap:wrap;gap:5px;padding:0 12px 8px;flex-shrink:0}
+.ai-q{font-size:8.5px;padding:3px 8px;border-radius:3px;border:1px solid var(--border2);color:var(--muted);cursor:pointer;transition:all .12s;letter-spacing:0.02em}
+.ai-q:hover{border-color:var(--purple);color:var(--purple);background:var(--purple3)}
+/* STATUS BAR */
+footer{grid-column:1/-1;background:var(--surf);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:9px;color:var(--muted);letter-spacing:0.04em;flex-shrink:0}
+.status-left{display:flex;gap:16px;align-items:center}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* NOTES GLOBAL */
+.global-note{background:var(--surf2);border:1px solid var(--amber);border-radius:6px;padding:8px 10px;margin:8px 12px;font-size:9.5px;color:var(--amber);line-height:1.5;position:relative}
+.global-note .del{position:absolute;top:4px;right:6px;cursor:pointer;color:var(--muted);font-size:10px}
+.global-note .del:hover{color:var(--red)}
+/* PRINT */
+@media print{
+  .ai-panel,.h-actions,.view-tabs,.left-panel,.right-panel,footer{display:none!important}
+  .app{display:block;height:auto;overflow:visible}
+  canvas{width:100%!important;height:auto!important;page-break-after:always}
+  .print-page{page-break-before:always;padding:20px;font-family:var(--font-mono)}
+}
+/* SELECTION RING */
+.selected-ring{pointer-events:none}
+/* TOOLTIP */
+#tooltip{position:fixed;background:var(--surf2);border:1px solid var(--border2);border-radius:4px;padding:5px 9px;font-size:9px;color:var(--text);pointer-events:none;z-index:100;display:none;letter-spacing:0.03em}
+/* EMPTY STATE */
+.empty-props{padding:20px;text-align:center;color:var(--muted);font-size:10px;line-height:1.8}
+.empty-props .icon{font-size:28px;margin-bottom:8px;opacity:0.3}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<header>
+  <div class="h-logo">
+    <div class="h-logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="6" stroke="#8b7ff5" stroke-width="1"/>
+        <circle cx="8" cy="8" r="2" fill="#8b7ff5"/>
+        <line x1="8" y1="2" x2="8" y2="4" stroke="#8b7ff5" stroke-width="1"/>
+        <line x1="8" y1="12" x2="8" y2="14" stroke="#2dd4a0" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="h-title">SMART TEMPERATURE LID</div>
+      <div class="h-sub">Interactive CAD · Prototype v1.0</div>
+    </div>
+  </div>
+  <div class="h-chips" id="header-chips">
+    <span class="chip on" id="chip-outer">Ø100mm outer</span>
+    <span class="chip on" id="chip-height">30mm height</span>
+    <span class="chip on" id="chip-rim">80–90mm rim</span>
+    <span class="chip on" id="chip-mouth">Ø20mm mouth</span>
+  </div>
+  <div class="h-actions">
+    <button class="btn" onclick="resetState()">↺ Reset</button>
+    <button class="btn" onclick="saveState()">💾 Save</button>
+    <button class="btn" onclick="window.print()">🖨 Print</button>
+    <button class="btn primary" onclick="toggleAI()">✦ AI Assistant</button>
+  </div>
+</header>
+
+<!-- LEFT PANEL: Component Tree -->
+<aside class="left-panel">
+  <div class="panel-head">
+    <span>Components</span>
+    <span style="font-size:8px;cursor:pointer;color:var(--purple)" onclick="toggleAll(true)">show all</span>
+  </div>
+  <div id="component-tree"></div>
+  <div class="panel-head" style="margin-top:auto">
+    <span>Global Notes</span>
+    <span style="font-size:14px;cursor:pointer;color:var(--amber);line-height:1" onclick="addGlobalNote()">+</span>
+  </div>
+  <div id="global-notes"></div>
+</aside>
+
+<!-- CANVAS AREA -->
+<main class="canvas-wrap">
+  <div class="view-tabs">
+    <div class="vtab active" onclick="switchView('top',this)"><span class="vtab-num">01</span>TOP VIEW</div>
+    <div class="vtab" onclick="switchView('side',this)"><span class="vtab-num">02</span>CROSS-SECTION</div>
+    <div class="vtab" onclick="switchView('explode',this)"><span class="vtab-num">03</span>EXPLODED</div>
+    <div class="vtab" onclick="switchView('cup',this)"><span class="vtab-num">04</span>ON CUP</div>
+  </div>
+  <canvas id="c"></canvas>
+</main>
+
+<!-- RIGHT PANEL: Properties -->
+<aside class="right-panel">
+  <div class="panel-head"><span>Properties</span></div>
+  <div id="props-panel">
+    <div class="empty-props">
+      <div class="icon">⊡</div>
+      Click any component<br>in the canvas or tree<br>to edit its dimensions
+    </div>
+  </div>
+</aside>
+
+<!-- STATUS BAR -->
+<footer>
+  <div class="status-left">
+    <span><span class="status-dot" style="display:inline-block;margin-right:5px"></span>Ready</span>
+    <span id="status-msg">Click a component to select it</span>
+  </div>
+  <span id="cursor-pos"></span>
+</footer>
+</div>
+
+<!-- AI PANEL -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-head">
+    <h2>✦ AI Design Assistant</h2>
+    <button class="btn" onclick="toggleAI()">✕ Close</button>
+  </div>
+  <div class="ai-messages" id="ai-msgs">
+    <div class="msg ai">Hi! I'm your design assistant for this lid project. I know all your components and dimensions. Ask me anything — like "Why is the LiPo flat?" or "Suggest a note for the silicone ring" or "What's the probe depth for?"</div>
+  </div>
+  <div class="ai-quick">
+    <span class="ai-q" onclick="quickAsk('Explain why the lid is 100mm outer diameter')">Why 100mm?</span>
+    <span class="ai-q" onclick="quickAsk('Generate a component note for the DS18B20 probe')">Note: probe</span>
+    <span class="ai-q" onclick="quickAsk('Generate a component note for the silicone grip ring')">Note: ring</span>
+    <span class="ai-q" onclick="quickAsk('What are the TinkerCAD steps for Layer 2?')">TinkerCAD L2</span>
+    <span class="ai-q" onclick="quickAsk('What temperature thresholds should I program?')">Temp thresholds</span>
+    <span class="ai-q" onclick="quickAsk('Write a one paragraph assignment description of this prototype')">Assignment text</span>
+  </div>
+  <div class="ai-input-row">
+    <input class="ai-input" id="ai-in" placeholder="Ask about your design..." onkeydown="if(event.key==='Enter')sendAI()">
+    <button class="btn primary" onclick="sendAI()">Send</button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+const DEFAULT_STATE = {
+  view: 'top',
+  selectedId: null,
+  lid: { outerDia:100, height:30, l1:8, l2:15, l3:7, note:'' },
+  components: {
+    oled:  { name:'OLED Display',     group:'Layer 1', color:'#5a9cf8', props:{w:40,h:14,d:4},  note:'SSD1306 128×32 display. Shows temperature, status word, and progress bar.', visible:true },
+    led:   { name:'LED Indicator',    group:'Layer 1', color:'#f5a623', props:{diameter:5},      note:'Green = safe to drink. Red = too hot. Amber = warming.', visible:true },
+    mouth: { name:'Mouth Opening',    group:'Layer 1', color:'#eef4fc', props:{diameter:20},     note:'Open hole for drinking. Positioned toward front edge of lid.', visible:true },
+    nano:  { name:'Arduino Nano',     group:'Layer 2', color:'#8b7ff5', props:{w:45,h:18,d:8},  note:'ATmega328 based. Reads DS18B20, drives OLED, controls LED.', visible:true },
+    lipo:  { name:'LiPo Battery',     group:'Layer 2', color:'#f5a623', props:{w:50,h:34,d:5},  note:'3.7V 500mAh flat cell. ~12 hours continuous use at 40mA draw.', visible:true },
+    usbc:  { name:'USB-C Module',     group:'Layer 2', color:'#2dd4a0', props:{w:26,h:16,d:4},  note:'Makerverse LiPo charging module. Port slot on right side wall.', visible:true },
+    btn:   { name:'Power Button',     group:'Layer 2', color:'#2dd4a0', props:{diameter:8},      note:'JST inline tactile switch. Placed on side wall for easy access.', visible:true },
+    ring:  { name:'Silicone Grip Ring',group:'Layer 3', color:'#2dd4a0', props:{minDia:80,maxDia:90,thickness:5,depth:7}, note:'Flexes from 80mm (small cup) to 90mm (regular/large). Shore 40A silicone.', visible:true },
+    probe: { name:'DS18B20 Probe',    group:'Layer 3', color:'#f07070', props:{diameter:6,length:30}, note:'Waterproof probe. Reads ±0.5°C. Pull-up: 4.7kΩ between data and VCC.', visible:true },
+  },
+  globalNotes: [],
+  aiHistory: [],
+};
+
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+loadState();
+
+// ════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ════════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+let hitRegions = [];
+let hoveredId = null;
+
+function resize() {
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth, h = wrap.clientHeight - 40;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  draw();
+}
+
+// ════════════════════════════════════════════════════════════
+// COLORS
+// ════════════════════════════════════════════════════════════
+const C = {
+  bg:'#080c10', surf:'#0d1520', grid:'#0f1e2e', border:'#1c2e42',
+  fg:'#d4e0ee', white:'#eef4fc', muted:'#4e6a87', faint:'#101e2e',
+  purple:'#8b7ff5', teal:'#2dd4a0', amber:'#f5a623', red:'#f07070',
+  blue:'#5a9cf8', orange:'#fb923c',
+  l1:'rgba(139,127,245,0.13)', l2:'rgba(139,127,245,0.07)', l3:'rgba(45,212,160,0.1)',
+};
+function hex(h,a=1){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return `rgba(${r},${g},${b},${a})`}
+
+// ════════════════════════════════════════════════════════════
+// DRAWING HELPERS
+// ════════════════════════════════════════════════════════════
+function W(){return canvas.width/dpr}
+function H(){return canvas.height/dpr}
+function mm(v){return v*3.0}
+
+function drawGrid(){
+  ctx.strokeStyle=C.grid; ctx.lineWidth=0.5;
+  for(let x=0;x<W();x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H());ctx.stroke()}
+  for(let y=0;y<H();y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W(),y);ctx.stroke()}
+}
+
+function mono(size){ctx.font=`${size}px 'JetBrains Mono',monospace`}
+function sans(size,w='400'){ctx.font=`${w} ${size}px 'Syne',sans-serif`}
+
+function rrect(x,y,w,h,r,fill,stroke,lw=1.5){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,[r]);
+  if(fill){ctx.fillStyle=fill;ctx.fill()}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke()}
+}
+
+function registerHit(id,x,y,w,h){hitRegions.push({id,x,y,w,h})}
+function registerHitCircle(id,cx,cy,r){hitRegions.push({id,cx,cy,r,circle:true})}
+
+function hitTest(mx,my){
+  for(let i=hitRegions.length-1;i>=0;i--){
+    const h=hitRegions[i];
+    if(h.circle){
+      if(Math.hypot(mx-h.cx,my-h.cy)<=h.r+4)return h.id;
+    } else {
+      if(mx>=h.x-2&&mx<=h.x+h.w+2&&my>=h.y-2&&my<=h.y+h.h+2)return h.id;
+    }
+  }
+  return null;
+}
+
+function selectionGlow(x,y,w,h,col='#8b7ff5'){
+  ctx.shadowColor=col; ctx.shadowBlur=12;
+  ctx.strokeStyle=col; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,3]);
+  rrect(x-3,y-3,w+6,h+6,4,null,col,1.5);
+  ctx.setLineDash([]); ctx.shadowBlur=0;
+}
+
+function selectionGlowCircle(cx,cy,r,col='#8b7ff5'){
+  ctx.shadowColor=col; ctx.shadowBlur=12;
+  ctx.strokeStyle=col; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.arc(cx,cy,r+4,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur=0;
+}
+
+function dimH(x1,x2,y,lbl,col,above=true){
+  ctx.strokeStyle=col; ctx.lineWidth=0.7;
+  ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(x1,y-9);ctx.lineTo(x1,y+9);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x2,y-9);ctx.lineTo(x2,y+9);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x1+7,y-3);ctx.moveTo(x1,y);ctx.lineTo(x1+7,y+3);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x2,y);ctx.lineTo(x2-7,y-3);ctx.moveTo(x2,y);ctx.lineTo(x2-7,y+3);ctx.stroke();
+  mono(8.5); ctx.fillStyle=col; ctx.textAlign='center';
+  ctx.fillText(lbl,(x1+x2)/2,above?y-13:y+18);
+}
+
+function dimV(x,y1,y2,lbl,col){
+  ctx.strokeStyle=col; ctx.lineWidth=0.7;
+  ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(x-9,y1);ctx.lineTo(x+9,y1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-9,y2);ctx.lineTo(x+9,y2);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x-3,y1+7);ctx.moveTo(x,y1);ctx.lineTo(x+3,y1+7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x,y2);ctx.lineTo(x-3,y2-7);ctx.moveTo(x,y2);ctx.lineTo(x+3,y2-7);ctx.stroke();
+  mono(8.5); ctx.fillStyle=col; ctx.textAlign='left';
+  ctx.fillText(lbl,x+6,(y1+y2)/2+3);
+}
+
+function leader(x1,y1,x2,y2,lbl,sub,col,align='left'){
+  ctx.strokeStyle=hex(col,0.6); ctx.lineWidth=0.7;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();ctx.arc(x1,y1,2.5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+  mono(9.5); ctx.fillStyle=col; ctx.textAlign=align;
+  const tx=align==='right'?x2-4:x2+4;
+  ctx.fillText(lbl,tx,y2-1);
+  if(sub){mono(8);ctx.fillStyle=C.muted;ctx.fillText(sub,tx,y2+12)}
+}
+
+function hatch(x,y,w,h){
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  ctx.strokeStyle='rgba(100,116,139,0.25)'; ctx.lineWidth=0.5;
+  for(let i=-h;i<w+h;i+=4){ctx.beginPath();ctx.moveTo(x+i,y);ctx.lineTo(x+i-h,y+h);ctx.stroke()}
+  ctx.restore();
+}
+
+function stag(x,y,lbl,col){
+  mono(8); ctx.textAlign='left';
+  const w=ctx.measureText(lbl).width+10;
+  ctx.fillStyle=hex(col,0.15); ctx.fillRect(x,y-11,w,14);
+  ctx.fillStyle=col; ctx.fillText(lbl,x+5,y);
+}
+
+function isVisible(id){ return state.components[id]?.visible !== false }
+function isSelected(id){ return state.selectedId === id }
+function compColor(id){ return state.components[id]?.color || '#aaa' }
+
+// ════════════════════════════════════════════════════════════
+// VIEWS
+// ════════════════════════════════════════════════════════════
+function draw(){
+  hitRegions=[];
+  ctx.clearRect(0,0,W(),H());
+  drawGrid();
+  const v=state.view;
+  if(v==='top')    drawTop();
+  if(v==='side')   drawSide();
+  if(v==='explode')drawExplode();
+  if(v==='cup')    drawOnCup();
+  drawBorder();
+}
+
+function drawBorder(){
+  ctx.strokeStyle=C.border; ctx.lineWidth=0.5;
+  ctx.strokeRect(10,10,W()-20,H()-20);
+  mono(8.5); ctx.fillStyle=C.muted; ctx.textAlign='left';
+  ctx.fillText('SMART TEMPERATURE LID  ·  PROTOTYPE v1.0  ·  SCALE ~1:3  ·  mm',18,H()-16);
+  ctx.textAlign='right';
+  ctx.fillText(`Ø${state.lid.outerDia}mm outer  ·  ${state.lid.height}mm height  ·  ${state.lid.l1}+${state.lid.l2}+${state.lid.l3}mm layers`,W()-18,H()-16);
+}
+
+// ── TOP VIEW ────────────────────────────────────────────────
+function drawTop(){
+  const cx=W()*0.38, cy=H()*0.51;
+  const R=mm(state.lid.outerDia)/2;
+  const L=state;
+
+  // Outer ring
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+  ctx.fillStyle=C.l1; ctx.fill();
+  ctx.strokeStyle=C.fg; ctx.lineWidth=1.8; ctx.stroke();
+  registerHitCircle('lid',cx,cy,R);
+
+  // Center cross
+  ctx.strokeStyle=C.faint; ctx.lineWidth=0.6; ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(cx-22,cy);ctx.lineTo(cx+22,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy-22);ctx.lineTo(cx,cy+22);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Silicone ring dashed
+  if(isVisible('ring')){
+    const p=L.components.ring.props;
+    ctx.beginPath();ctx.arc(cx,cy,mm(p.maxDia)/2,0,Math.PI*2);
+    ctx.strokeStyle=C.teal; ctx.lineWidth=0.9; ctx.setLineDash([5,4]); ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,mm(p.minDia)/2,0,Math.PI*2);
+    ctx.strokeStyle=hex(C.teal,0.4); ctx.lineWidth=0.6; ctx.stroke();
+    ctx.setLineDash([]);
+    registerHitCircle('ring',cx,cy,mm(p.maxDia)/2);
+    if(isSelected('ring')) selectionGlowCircle(cx,cy,mm(p.maxDia)/2,C.teal);
+    leader(cx-mm(p.maxDia)/2,cy+6,cx-mm(p.maxDia)/2-32,cy+28,'SILICONE RING',`${p.minDia}–${p.maxDia}mm flex`,C.teal,'right');
+  }
+
+  // Mouth opening
+  if(isVisible('mouth')){
+    const p=L.components.mouth.props;
+    const mX=cx, mY=cy-mm(28);
+    ctx.beginPath();ctx.arc(mX,mY,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.fillStyle=C.bg; ctx.fill();
+    hatch(mX-mm(p.diameter)/2,mY-mm(p.diameter)/2,mm(p.diameter),mm(p.diameter));
+    ctx.beginPath();ctx.arc(mX,mY,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.strokeStyle=C.white; ctx.lineWidth=1.4; ctx.stroke();
+    registerHitCircle('mouth',mX,mY,mm(p.diameter)/2);
+    if(isSelected('mouth')) selectionGlowCircle(mX,mY,mm(p.diameter)/2,C.white);
+    if(hoveredId==='mouth'||isSelected('mouth')){
+      leader(mX+mm(p.diameter)/2,mY-5,mX+mm(p.diameter)/2+38,mY-28,'MOUTH OPENING',`Ø${p.diameter}mm  open hole`,C.white);
+    } else {
+      mono(8); ctx.fillStyle=C.muted; ctx.textAlign='center';
+      ctx.fillText('MOUTH',mX,mY+3);
+    }
+    dimH(mX-mm(p.diameter)/2,mX+mm(p.diameter)/2,mY+mm(p.diameter)/2+18,p.diameter+'mm',C.muted,false);
+  }
+
+  // OLED
+  if(isVisible('oled')){
+    const p=L.components.oled.props;
+    const oX=cx-mm(p.w)/2, oY=cy+mm(10);
+    rrect(oX,oY,mm(p.w),mm(p.h),3,'#0d1f4a',C.blue,1.2);
+    mono(10); ctx.fillStyle=C.teal; ctx.textAlign='center';
+    ctx.fillText('74.2°C',cx,oY+mm(p.h)*0.5);
+    mono(7); ctx.fillStyle=C.amber;
+    ctx.fillText('WARM',cx,oY+mm(p.h)*0.82);
+    registerHit('oled',oX,oY,mm(p.w),mm(p.h));
+    if(isSelected('oled')) selectionGlow(oX,oY,mm(p.w),mm(p.h),C.blue);
+    leader(cx+mm(p.w)/2+2,oY+mm(p.h)/2,cx+mm(p.w)/2+44,oY+mm(p.h)/2,'OLED SSD1306',`${p.w}×${p.h}mm`,C.blue);
+  }
+
+  // LED
+  if(isVisible('led')){
+    const p=L.components.led.props;
+    const lX=cx+mm(30), lY=cy+mm(10)+mm(L.components.oled.props.h)/2;
+    ctx.beginPath();ctx.arc(lX,lY,mm(p.diameter)/2+5,0,Math.PI*2);
+    ctx.fillStyle='rgba(245,166,35,0.08)'; ctx.fill();
+    ctx.beginPath();ctx.arc(lX,lY,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.fillStyle='#fef9c3'; ctx.fill();
+    ctx.strokeStyle=C.amber; ctx.lineWidth=1; ctx.stroke();
+    registerHitCircle('led',lX,lY,mm(p.diameter)/2);
+    if(isSelected('led')) selectionGlowCircle(lX,lY,mm(p.diameter)/2,C.amber);
+    leader(lX+mm(p.diameter)/2+3,lY-2,lX+28,lY-20,'LED',`Ø${p.diameter}mm`,C.amber);
+  }
+
+  // DS18B20 center
+  if(isVisible('probe')){
+    const p=L.components.probe.props;
+    ctx.beginPath();ctx.arc(cx,cy,mm(p.diameter)/2+2,0,Math.PI*2);
+    ctx.fillStyle=hex(C.red,0.15); ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.strokeStyle=C.red; ctx.lineWidth=1.4; ctx.stroke();
+    registerHitCircle('probe',cx,cy,mm(p.diameter)/2+2);
+    if(isSelected('probe')) selectionGlowCircle(cx,cy,mm(p.diameter)/2+2,C.red);
+    leader(cx+mm(p.diameter)/2+2,cy+3,cx+38,cy+42,'DS18B20',`Ø${p.diameter}mm center`,C.red);
+  }
+
+  // Power button
+  if(isVisible('btn')){
+    const p=L.components.btn.props;
+    const bA=Math.PI*0.68;
+    const bX=cx+Math.cos(bA)*(R-4), bY=cy+Math.sin(bA)*(R-4);
+    ctx.beginPath();ctx.arc(bX,bY,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.strokeStyle=C.teal; ctx.lineWidth=1; ctx.setLineDash([3,2]); ctx.stroke();
+    ctx.setLineDash([]);
+    registerHitCircle('btn',bX,bY,mm(p.diameter)/2);
+    if(isSelected('btn')) selectionGlowCircle(bX,bY,mm(p.diameter)/2,C.teal);
+    leader(bX-mm(p.diameter)/2,bY+2,bX-55,bY+20,'POWER BTN',`Ø${p.diameter}mm side`,C.teal,'right');
+  }
+
+  // USB-C
+  if(isVisible('usbc')){
+    const p=L.components.usbc.props;
+    const uA=Math.PI*0.32;
+    const uX=cx+Math.cos(uA)*(R-2), uY=cy+Math.sin(uA)*(R-2);
+    rrect(uX-6,uY-3,12,7,2,hex(C.teal,0.2),C.teal,1.2);
+    registerHit('usbc',uX-6,uY-3,12,7);
+    if(isSelected('usbc')) selectionGlow(uX-6,uY-3,12,7,C.teal);
+    leader(uX+7,uY,uX+36,uY+22,'USB-C',`${p.w}×${p.h}mm`,C.teal);
+  }
+
+  // Nano (shown as inner rect)
+  if(isVisible('nano')){
+    const p=L.components.nano.props;
+    const nX=cx-mm(p.w)/2, nY=cy-mm(40);
+    rrect(nX,nY,mm(p.w),mm(2),2,hex(C.purple,0.3),C.purple,0.7);
+    ctx.setLineDash([3,2]);
+    rrect(nX,nY,mm(p.w),mm(2),2,null,C.purple,0.7);
+    ctx.setLineDash([]);
+    registerHit('nano',nX,nY,mm(p.w),mm(2));
+    mono(7.5); ctx.fillStyle=hex(C.purple,0.6); ctx.textAlign='center';
+    ctx.fillText('NANO (L2)',cx,nY-4);
+  }
+
+  // Dim lines
+  dimH(cx-R,cx+R,cy+R+26,`Ø${state.lid.outerDia}mm outer`,C.fg,true);
+  dimH(cx-mm(state.components.ring.props.maxDia)/2,cx+mm(state.components.ring.props.maxDia)/2,cy+R+42,`${state.components.ring.props.maxDia}mm ring`,C.teal,true);
+
+  // View label
+  sans(11,'500'); ctx.fillStyle=C.muted; ctx.textAlign='left';
+  ctx.fillText('TOP VIEW — lid face',20,28);
+}
+
+// ── CROSS-SECTION ───────────────────────────────────────────
+function drawSide(){
+  const cx=W()*0.38, bY=H()*0.87;
+  const lW=mm(state.lid.outerDia)/2;
+  const L=state;
+  const l3Y=bY-mm(L.lid.l3);
+  const l2Y=l3Y-mm(L.lid.l2);
+  const l1Y=l2Y-mm(L.lid.l1);
+
+  // L1
+  rrect(cx-lW,l1Y,lW*2,mm(L.lid.l1),4,C.l1,C.purple,1.8);
+  stag(cx-lW+8,l1Y+13,`LAYER 1  TOP  ${L.lid.l1}mm`,C.purple);
+  registerHit('l1',cx-lW,l1Y,lW*2,mm(L.lid.l1));
+  if(isSelected('l1')) selectionGlow(cx-lW,l1Y,lW*2,mm(L.lid.l1),C.purple);
+
+  // OLED in L1
+  if(isVisible('oled')){
+    const p=L.components.oled.props;
+    rrect(cx-mm(p.w)/2,l1Y+2,mm(p.w),mm(p.d),2,'#0d1f4a',C.blue,1);
+    mono(8); ctx.fillStyle=C.teal; ctx.textAlign='left';
+    ctx.fillText('74.2°C',cx-mm(p.w)/2+4,l1Y+mm(p.d)-1);
+    registerHit('oled',cx-mm(p.w)/2,l1Y+2,mm(p.w),mm(p.d));
+    if(isSelected('oled')) selectionGlow(cx-mm(p.w)/2,l1Y+2,mm(p.w),mm(p.d),C.blue);
+    leader(cx+mm(p.w)/2+1,l1Y+mm(p.d)/2,cx+mm(p.w)/2+36,l1Y+mm(p.d)/2-12,`OLED ${p.d}mm deep`,null,C.blue);
+  }
+
+  // Mouth cutout
+  if(isVisible('mouth')){
+    const p=L.components.mouth.props;
+    const mCX=cx-mm(22);
+    ctx.fillStyle=C.bg; ctx.fillRect(mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2);
+    hatch(mCX-mm(p.diameter)/2,l1Y,mm(p.diameter),mm(L.lid.l1));
+    ctx.strokeStyle=C.white; ctx.lineWidth=1; ctx.strokeRect(mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2);
+    registerHit('mouth',mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2);
+    if(isSelected('mouth')) selectionGlow(mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2,C.white);
+    leader(mCX,l1Y-2,mCX-44,l1Y-22,`MOUTH Ø${p.diameter}mm`,'thru',C.white,'right');
+  }
+
+  // LED
+  if(isVisible('led')){
+    const p=L.components.led.props;
+    ctx.beginPath();ctx.arc(cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.fillStyle='#fef9c3'; ctx.fill(); ctx.strokeStyle=C.amber; ctx.lineWidth=1; ctx.stroke();
+    registerHitCircle('led',cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2);
+    if(isSelected('led')) selectionGlowCircle(cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2,C.amber);
+  }
+
+  // L2
+  rrect(cx-lW,l2Y,lW*2,mm(L.lid.l2),0,C.l2,C.purple,1.8);
+  stag(cx-lW+8,l2Y+13,`LAYER 2  MIDDLE  ${L.lid.l2}mm`,C.purple);
+  registerHit('l2',cx-lW,l2Y,lW*2,mm(L.lid.l2));
+  if(isSelected('l2')) selectionGlow(cx-lW,l2Y,lW*2,mm(L.lid.l2),C.purple);
+
+  if(isVisible('nano')){
+    const p=L.components.nano.props;
+    rrect(cx-mm(p.w)/2,l2Y+mm(1.5),mm(p.w),mm(p.d),2,hex(C.purple,0.22),C.purple,1);
+    mono(8); ctx.fillStyle=C.purple; ctx.textAlign='center';
+    ctx.fillText(`Nano ${p.w}×${p.h}×${p.d}mm`,cx,l2Y+mm(1.5)+mm(p.d)/2+3);
+    registerHit('nano',cx-mm(p.w)/2,l2Y+mm(1.5),mm(p.w),mm(p.d));
+    if(isSelected('nano')) selectionGlow(cx-mm(p.w)/2,l2Y+mm(1.5),mm(p.w),mm(p.d),C.purple);
+    leader(cx+mm(p.w)/2+1,l2Y+mm(1.5)+mm(p.d)/2,cx+mm(p.w)/2+32,l2Y+mm(1.5)+mm(p.d)/2-10,`Nano ${p.w}×${p.h}×${p.d}`,null,C.purple);
+  }
+
+  if(isVisible('lipo')){
+    const p=L.components.lipo.props;
+    const ly=l2Y+mm(L.lid.l2)-mm(p.d)-mm(1.5);
+    rrect(cx-mm(p.w)/2,ly,mm(p.w),mm(p.d),2,hex(C.amber,0.18),C.amber,1);
+    mono(8); ctx.fillStyle=C.amber; ctx.textAlign='center';
+    ctx.fillText(`LiPo ${p.w}×${p.h}×${p.d}mm`,cx,ly+mm(p.d)/2+3);
+    registerHit('lipo',cx-mm(p.w)/2,ly,mm(p.w),mm(p.d));
+    if(isSelected('lipo')) selectionGlow(cx-mm(p.w)/2,ly,mm(p.w),mm(p.d),C.amber);
+    leader(cx+mm(p.w)/2+1,ly+mm(p.d)/2,cx+mm(p.w)/2+32,ly+mm(p.d)/2+10,`LiPo ${p.w}×${p.h}×${p.d}`,null,C.amber);
+  }
+
+  if(isVisible('usbc')){
+    rrect(cx+lW-mm(2.5),l2Y+mm(4),mm(3),mm(4),1,hex(C.teal,0.3),C.teal,1.5);
+    registerHit('usbc',cx+lW-mm(2.5),l2Y+mm(4),mm(3),mm(4));
+    if(isSelected('usbc')) selectionGlow(cx+lW-mm(2.5),l2Y+mm(4),mm(3),mm(4),C.teal);
+    mono(8.5); ctx.fillStyle=C.teal; ctx.textAlign='left';
+    ctx.fillText('USB-C',cx+lW+5,l2Y+mm(6));
+    ctx.fillText('14×7mm',cx+lW+5,l2Y+mm(9));
+  }
+
+  if(isVisible('btn')){
+    const p=L.components.btn.props;
+    ctx.beginPath();ctx.arc(cx-lW+mm(1.5),l2Y+mm(8),mm(p.diameter)/2,0,Math.PI*2);
+    ctx.fillStyle=hex(C.teal,0.2); ctx.fill(); ctx.strokeStyle=C.teal; ctx.lineWidth=1.3; ctx.stroke();
+    registerHitCircle('btn',cx-lW+mm(1.5),l2Y+mm(8),mm(p.diameter)/2);
+    if(isSelected('btn')) selectionGlowCircle(cx-lW+mm(1.5),l2Y+mm(8),mm(p.diameter)/2,C.teal);
+    mono(8.5); ctx.fillStyle=C.teal; ctx.textAlign='right';
+    ctx.fillText(`BTN Ø${p.diameter}mm`,cx-lW-4,l2Y+mm(8)+3);
+  }
+
+  // L3
+  rrect(cx-lW,l3Y,lW*2,mm(L.lid.l3),0,C.l3,C.teal,1.8);
+  stag(cx-lW+8,l3Y+12,`LAYER 3  BOTTOM  ${L.lid.l3}mm`,C.teal);
+  registerHit('l3',cx-lW,l3Y,lW*2,mm(L.lid.l3));
+  if(isSelected('l3')) selectionGlow(cx-lW,l3Y,lW*2,mm(L.lid.l3),C.teal);
+
+  if(isVisible('ring')){
+    const p=L.components.ring.props;
+    const rimR=mm(p.maxDia)/2;
+    rrect(cx-lW,l3Y+mm(1),lW-rimR,mm(L.lid.l3)-mm(2),0,'rgba(100,116,139,0.25)',C.muted,1);
+    rrect(cx+rimR,l3Y+mm(1),lW-rimR,mm(L.lid.l3)-mm(2),0,'rgba(100,116,139,0.25)',C.muted,1);
+    rrect(cx-rimR,l3Y+mm(1.5),mm(5),mm(L.lid.l3)-mm(3),2,hex(C.teal,0.4),C.teal,1.2);
+    rrect(cx+rimR-mm(5),l3Y+mm(1.5),mm(5),mm(L.lid.l3)-mm(3),2,hex(C.teal,0.4),C.teal,1.2);
+    mono(8); ctx.fillStyle=C.teal; ctx.textAlign='center';
+    ctx.fillText(`cup rim slot  ${p.minDia}–${p.maxDia}mm`,cx,l3Y+mm(L.lid.l3)/2+3);
+    registerHit('ring',cx-rimR,l3Y,rimR*2,mm(L.lid.l3));
+    if(isSelected('ring')) selectionGlow(cx-rimR,l3Y,rimR*2,mm(L.lid.l3),C.teal);
+  }
+
+  if(isVisible('probe')){
+    const p=L.components.probe.props;
+    rrect(cx-mm(p.diameter)/2,bY,mm(p.diameter),mm(p.length),3,hex(C.red,0.25),C.red,1.8);
+    registerHit('probe',cx-mm(p.diameter)/2,bY,mm(p.diameter),mm(p.length));
+    if(isSelected('probe')) selectionGlow(cx-mm(p.diameter)/2,bY,mm(p.diameter),mm(p.length),C.red);
+    leader(cx+mm(p.diameter)/2,bY+mm(p.length)*0.5,cx+mm(p.diameter)/2+34,bY+mm(p.length)*0.5,`DS18B20 Ø${p.diameter}mm`,`${p.length}mm probe`,C.red);
+    ctx.strokeStyle=hex(C.red,0.35); ctx.lineWidth=0.8; ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(cx+mm(p.diameter)/2+mm(1),bY);ctx.lineTo(cx+mm(p.diameter)/2+mm(1),l2Y);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Dims
+  dimV(cx+lW+48,l1Y,l1Y+mm(L.lid.l1),`${L.lid.l1}mm`,C.purple);
+  dimV(cx+lW+48,l2Y,l2Y+mm(L.lid.l2),`${L.lid.l2}mm`,C.purple);
+  dimV(cx+lW+48,l3Y,l3Y+mm(L.lid.l3),`${L.lid.l3}mm`,C.teal);
+  dimV(cx+lW+76,l1Y,bY,`${L.lid.height}mm total`,C.fg);
+  dimH(cx-lW,cx+lW,l1Y-26,`${state.lid.outerDia}mm outer`,C.fg,true);
+
+  sans(11,'500'); ctx.fillStyle=C.muted; ctx.textAlign='left';
+  ctx.fillText('CROSS-SECTION — cut through center',20,28);
+}
+
+// ── EXPLODED ────────────────────────────────────────────────
+function drawExplode(){
+  const cx=W()*0.35, gap=32, startY=80;
+  const lW=mm(state.lid.outerDia)/2;
+  const L=state;
+  const h1=mm(L.lid.l1), h2=mm(L.lid.l2), h3=mm(L.lid.l3);
+  const y1=startY, y2=y1+h1+gap, y3=y2+h2+gap;
+
+  function lay(y,h,fill,stroke,id){
+    rrect(cx-lW,y,lW*2,h,3,fill,stroke,1.8);
+    registerHit(id,cx-lW,y,lW*2,h);
+    if(isSelected(id)) selectionGlow(cx-lW,y,lW*2,h,stroke);
+  }
+
+  lay(y1,h1,C.l1,C.purple,'l1');
+  stag(cx-lW+8,y1+13,`1  TOP  ${L.lid.l1}mm`,C.purple);
+
+  if(isVisible('oled')){
+    const p=L.components.oled.props;
+    rrect(cx-mm(p.w)/2,y1+2,mm(p.w),mm(p.d),2,'#0d1f4a',C.blue,1);
+    mono(7); ctx.fillStyle=C.teal; ctx.textAlign='center'; ctx.fillText('OLED',cx,y1+mm(p.d)-1);
+    registerHit('oled',cx-mm(p.w)/2,y1+2,mm(p.w),mm(p.d));
+    if(isSelected('oled')) selectionGlow(cx-mm(p.w)/2,y1+2,mm(p.w),mm(p.d),C.blue);
+  }
+  if(isVisible('mouth')){
+    const p=L.components.mouth.props;
+    const mCX=cx-mm(22);
+    ctx.fillStyle=C.bg; ctx.fillRect(mCX-mm(p.diameter)/2,y1-1,mm(p.diameter),h1+2);
+    hatch(mCX-mm(p.diameter)/2,y1,mm(p.diameter),h1);
+    ctx.strokeStyle=C.white; ctx.lineWidth=1; ctx.strokeRect(mCX-mm(p.diameter)/2,y1-1,mm(p.diameter),h1+2);
+    registerHit('mouth',mCX-mm(p.diameter)/2,y1-1,mm(p.diameter),h1+2);
+    if(isSelected('mouth')) selectionGlow(mCX-mm(p.diameter)/2,y1-1,mm(p.diameter),h1+2,C.white);
+  }
+  if(isVisible('led')){
+    const p=L.components.led.props;
+    ctx.beginPath();ctx.arc(cx+mm(28),y1+h1/2,mm(p.diameter)/2,0,Math.PI*2);
+    ctx.fillStyle='#fef9c3'; ctx.fill(); ctx.strokeStyle=C.amber; ctx.lineWidth=1; ctx.stroke();
+    registerHitCircle('led',cx+mm(28),y1+h1/2,mm(p.diameter)/2);
+    if(isSelected('led')) selectionGlowCircle(cx+mm(28),y1+h1/2,mm(p.diameter)/2,C.amber);
+  }
+
+  // Notes right
+  const nx=cx+lW+14;
+  function notes(list,y){list.forEach((l,i)=>{mono(8.5);ctx.fillStyle=C.muted;ctx.textAlign='left';ctx.fillText(l,nx,y+i*13)})}
+  sans(10,'500'); ctx.fillStyle=C.white; ctx.textAlign='left'; ctx.fillText('TOP LAYER',nx,y1+h1/2-4);
+  notes([`• OLED ${L.components.oled.props.w}×${L.components.oled.props.h}×5mm`,`• Mouth Ø${L.components.mouth.props.diameter}mm thru`,`• LED Ø${L.components.led.props.diameter}mm thru`,'• 3mm backing behind OLED'],y1+h1/2+10);
+
+  lay(y2,h2,C.l2,C.purple,'l2');
+  stag(cx-lW+8,y2+13,`2  MIDDLE  ${L.lid.l2}mm`,C.purple);
+
+  if(isVisible('nano')){const p=L.components.nano.props;rrect(cx-mm(p.w)/2,y2+mm(2),mm(p.w),mm(p.d),2,hex(C.purple,0.22),C.purple,1);registerHit('nano',cx-mm(p.w)/2,y2+mm(2),mm(p.w),mm(p.d));if(isSelected('nano'))selectionGlow(cx-mm(p.w)/2,y2+mm(2),mm(p.w),mm(p.d),C.purple);}
+  if(isVisible('lipo')){const p=L.components.lipo.props;rrect(cx-mm(p.w)/2,y2+h2-mm(p.d)-mm(2),mm(p.w),mm(p.d),2,hex(C.amber,0.2),C.amber,1);registerHit('lipo',cx-mm(p.w)/2,y2+h2-mm(p.d)-mm(2),mm(p.w),mm(p.d));if(isSelected('lipo'))selectionGlow(cx-mm(p.w)/2,y2+h2-mm(p.d)-mm(2),mm(p.w),mm(p.d),C.amber);}
+  if(isVisible('usbc')){rrect(cx+lW-mm(2.5),y2+mm(4),mm(3),mm(4),1,hex(C.teal,0.3),C.teal,1.5);registerHit('usbc',cx+lW-mm(2.5),y2+mm(4),mm(3),mm(4));if(isSelected('usbc'))selectionGlow(cx+lW-mm(2.5),y2+mm(4),mm(3),mm(4),C.teal);}
+  if(isVisible('btn')){const p=L.components.btn.props;ctx.beginPath();ctx.arc(cx-lW+mm(1.5),y2+mm(8),mm(p.diameter)/2,0,Math.PI*2);ctx.fillStyle=hex(C.teal,0.2);ctx.fill();ctx.strokeStyle=C.teal;ctx.lineWidth=1.3;ctx.stroke();registerHitCircle('btn',cx-lW+mm(1.5),y2+mm(8),mm(p.diameter)/2);if(isSelected('btn'))selectionGlowCircle(cx-lW+mm(1.5),y2+mm(8),mm(p.diameter)/2,C.teal);}
+
+  sans(10,'500'); ctx.fillStyle=C.white; ctx.textAlign='left'; ctx.fillText('MIDDLE LAYER',nx,y2+h2/2-14);
+  notes([`• Nano pocket ${L.components.nano.props.w+2}×${L.components.nano.props.h+2}×${L.components.nano.props.d+1}mm`,`• LiPo pocket ${L.components.lipo.props.w+2}×${L.components.lipo.props.h+2}×${L.components.lipo.props.d+1}mm`,'• USB-C slot 14×7mm thru wall',`• Power btn Ø${L.components.btn.props.diameter}mm side`,'• 5mm walls all sides'],y2+h2/2+0);
+
+  lay(y3,h3,C.l3,C.teal,'l3');
+  stag(cx-lW+8,y3+12,`3  BOTTOM  ${L.lid.l3}mm`,C.teal);
+
+  if(isVisible('ring')){
+    const p=L.components.ring.props;
+    const rimR=mm(p.maxDia)/2;
+    rrect(cx-lW,y3+mm(1),lW-rimR,h3-mm(2),0,'rgba(100,116,139,0.25)',C.muted,1);
+    rrect(cx+rimR,y3+mm(1),lW-rimR,h3-mm(2),0,'rgba(100,116,139,0.25)',C.muted,1);
+    rrect(cx-rimR,y3+mm(1.5),mm(5),h3-mm(3),2,hex(C.teal,0.4),C.teal,1.2);
+    rrect(cx+rimR-mm(5),y3+mm(1.5),mm(5),h3-mm(3),2,hex(C.teal,0.4),C.teal,1.2);
+    registerHit('ring',cx-rimR,y3,rimR*2,h3);
+    if(isSelected('ring')) selectionGlow(cx-rimR,y3,rimR*2,h3,C.teal);
+  }
+  if(isVisible('probe')){
+    const p=L.components.probe.props;
+    ctx.beginPath();ctx.arc(cx,y3+h3/2,mm(p.diameter)/2+1,0,Math.PI*2);
+    ctx.strokeStyle=C.red; ctx.lineWidth=1.2; ctx.stroke();
+    registerHitCircle('probe',cx,y3+h3/2,mm(p.diameter)/2+1);
+    if(isSelected('probe')) selectionGlowCircle(cx,y3+h3/2,mm(p.diameter)/2+1,C.red);
+  }
+
+  sans(10,'500'); ctx.fillStyle=C.white; ctx.textAlign='left'; ctx.fillText('BOTTOM LAYER',nx,y3+h3/2-6);
+  notes([`• Rim slot ${L.components.ring.props.minDia}–${L.components.ring.props.maxDia}mm flex`,`• Probe hole Ø${L.components.probe.props.diameter+2}mm center`,'• Cable channel 4×4×22mm','• O-ring groove Ø96/84 × 3mm'],y3+h3/2+8);
+
+  // Assembly arrows
+  const ax=cx-lW-30;
+  [[y1,h1],[y2,h2],[y3,h3]].forEach(([y,h],i)=>{
+    ctx.beginPath();ctx.arc(ax,y+h/2,10,0,Math.PI*2);
+    ctx.fillStyle=C.purple2||'#4c47b0'; ctx.fill();
+    ctx.strokeStyle=C.purple; ctx.lineWidth=1; ctx.stroke();
+    mono(9); ctx.fillStyle=C.white; ctx.textAlign='center';
+    ctx.fillText(String(i+1),ax,y+h/2+3);
+  });
+  ctx.strokeStyle=C.faint; ctx.lineWidth=1;
+  [[y1+h1,y2],[y2+h2,y3]].forEach(([ya,yb])=>{
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(cx-lW,ya);ctx.lineTo(cx-lW,yb);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx+lW,ya);ctx.lineTo(cx+lW,yb);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(ax,ya+4);ctx.lineTo(ax,yb-4);
+    ctx.moveTo(ax,yb-4);ctx.lineTo(ax-4,yb-11);
+    ctx.moveTo(ax,yb-4);ctx.lineTo(ax+4,yb-11);
+    ctx.strokeStyle=C.muted; ctx.stroke();
+  });
+
+  sans(11,'500'); ctx.fillStyle=C.muted; ctx.textAlign='left';
+  ctx.fillText('EXPLODED VIEW — TinkerCAD assembly order',20,28);
+}
+
+// ── ON CUP ──────────────────────────────────────────────────
+function drawOnCup(){
+  const cx=W()*0.35, bY=H()*0.87;
+  const lW=mm(state.lid.outerDia)/2;
+  const L=state;
+  const rimR=mm(L.components.ring.props.maxDia)/2;
+  const cupH=mm(95);
+  const rimY=bY-cupH;
+  const l3Y=rimY-mm(L.lid.l3);
+  const l2Y=l3Y-mm(L.lid.l2);
+  const l1Y=l2Y-mm(L.lid.l1);
+
+  // Cup body
+  ctx.beginPath();
+  ctx.moveTo(cx-rimR*0.84,bY);ctx.lineTo(cx+rimR*0.84,bY);
+  ctx.lineTo(cx+rimR,rimY);ctx.lineTo(cx-rimR,rimY);ctx.closePath();
+  ctx.fillStyle='rgba(160,115,65,0.16)'; ctx.fill();
+  ctx.strokeStyle='rgba(160,120,70,0.65)'; ctx.lineWidth=2; ctx.stroke();
+  // Liquid
+  ctx.beginPath();ctx.moveTo(cx-rimR*0.8,bY-mm(8));ctx.lineTo(cx+rimR*0.8,bY-mm(8));
+  ctx.lineTo(cx+rimR-mm(3),rimY+mm(20));ctx.lineTo(cx-rimR+mm(3),rimY+mm(20));ctx.closePath();
+  ctx.fillStyle='rgba(130,80,35,0.3)'; ctx.fill();
+  // Steam
+  for(let i=-1;i<=1;i++){
+    ctx.beginPath(); ctx.strokeStyle='rgba(200,180,160,0.15)'; ctx.lineWidth=1.5;
+    for(let t=0;t<=1;t+=0.08){
+      const sx=cx+i*mm(12)+Math.sin(t*Math.PI*2)*mm(3);
+      const sy=rimY+mm(8)-t*mm(18);
+      t===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+  // Cup rim
+  ctx.strokeStyle='rgba(150,105,60,0.9)'; ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(cx-rimR,rimY);ctx.lineTo(cx+rimR,rimY);ctx.stroke();
+  mono(9); ctx.fillStyle='rgba(160,120,70,0.5)'; ctx.textAlign='center';
+  ctx.fillText('12oz TAKEAWAY CUP  ·  90mm rim  ·  355ml',cx,rimY+cupH*0.42);
+
+  // Layers
+  // L3
+  rrect(cx-lW,l3Y,lW*2,mm(L.lid.l3),0,C.l3,C.teal,1.8);
+  if(isVisible('ring')){
+    const p=L.components.ring.props;
+    rrect(cx-lW,l3Y+mm(1),lW-rimR,mm(L.lid.l3)-mm(2),0,'rgba(100,116,139,0.25)',C.muted,1);
+    rrect(cx+rimR,l3Y+mm(1),lW-rimR,mm(L.lid.l3)-mm(2),0,'rgba(100,116,139,0.25)',C.muted,1);
+    rrect(cx-rimR,l3Y+mm(1),mm(5),mm(L.lid.l3)-mm(2),2,hex(C.teal,0.45),C.teal,1.2);
+    rrect(cx+rimR-mm(5),l3Y+mm(1),mm(5),mm(L.lid.l3)-mm(2),2,hex(C.teal,0.45),C.teal,1.2);
+    // grip arrows
+    [[cx-rimR-mm(7),1],[cx+rimR+mm(7),-1]].forEach(([x,d])=>{
+      ctx.strokeStyle=C.teal; ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(x,l3Y+mm(L.lid.l3)/2);ctx.lineTo(x-d*mm(8),l3Y+mm(L.lid.l3)/2);
+      ctx.moveTo(x-d*mm(8),l3Y+mm(L.lid.l3)/2);
+      ctx.lineTo(x-d*mm(4),l3Y+mm(L.lid.l3)/2-3);
+      ctx.moveTo(x-d*mm(8),l3Y+mm(L.lid.l3)/2);
+      ctx.lineTo(x-d*mm(4),l3Y+mm(L.lid.l3)/2+3);
+      ctx.stroke();
+    });
+    registerHit('ring',cx-rimR,l3Y,rimR*2,mm(L.lid.l3));
+    if(isSelected('ring')) selectionGlow(cx-rimR,l3Y,rimR*2,mm(L.lid.l3),C.teal);
+  }
+
+  // L2
+  rrect(cx-lW,l2Y,lW*2,mm(L.lid.l2),0,C.l2,C.purple,1.8);
+  if(isVisible('nano')){const p=L.components.nano.props;rrect(cx-mm(p.w)/2,l2Y+mm(2),mm(p.w),mm(p.d),2,hex(C.purple,0.22),C.purple,1);registerHit('nano',cx-mm(p.w)/2,l2Y+mm(2),mm(p.w),mm(p.d));if(isSelected('nano'))selectionGlow(cx-mm(p.w)/2,l2Y+mm(2),mm(p.w),mm(p.d),C.purple);}
+  if(isVisible('lipo')){const p=L.components.lipo.props;rrect(cx-mm(p.w)/2,l2Y+mm(L.lid.l2)-mm(p.d)-mm(2),mm(p.w),mm(p.d),2,hex(C.amber,0.2),C.amber,1);registerHit('lipo',cx-mm(p.w)/2,l2Y+mm(L.lid.l2)-mm(p.d)-mm(2),mm(p.w),mm(p.d));if(isSelected('lipo'))selectionGlow(cx-mm(p.w)/2,l2Y+mm(L.lid.l2)-mm(p.d)-mm(2),mm(p.w),mm(p.d),C.amber);}
+  if(isVisible('usbc')){rrect(cx+lW-mm(2.5),l2Y+mm(4),mm(3),mm(4),1,hex(C.teal,0.3),C.teal,1.5);registerHit('usbc',cx+lW-mm(2.5),l2Y+mm(4),mm(3),mm(4));if(isSelected('usbc'))selectionGlow(cx+lW-mm(2.5),l2Y+mm(4),mm(3),mm(4),C.teal);}
+  if(isVisible('btn')){const p=L.components.btn.props;ctx.beginPath();ctx.arc(cx-lW+mm(1.5),l2Y+mm(8),mm(p.diameter)/2,0,Math.PI*2);ctx.fillStyle=hex(C.teal,0.2);ctx.fill();ctx.strokeStyle=C.teal;ctx.lineWidth=1.3;ctx.stroke();registerHitCircle('btn',cx-lW+mm(1.5),l2Y+mm(8),mm(p.diameter)/2);if(isSelected('btn'))selectionGlowCircle(cx-lW+mm(1.5),l2Y+mm(8),mm(p.diameter)/2,C.teal);}
+
+  // L1
+  rrect(cx-lW,l1Y,lW*2,mm(L.lid.l1),4,C.l1,C.purple,1.8);
+  if(isVisible('oled')){const p=L.components.oled.props;rrect(cx-mm(p.w)/2,l1Y+mm(1.5),mm(p.w),mm(p.d),2,'#0d1f4a',C.blue,1.2);mono(11);ctx.fillStyle=C.teal;ctx.textAlign='center';ctx.fillText('74.2°C',cx,l1Y+mm(1.5)+mm(p.d)*0.72);mono(7);ctx.fillStyle=C.amber;ctx.fillText('WARM',cx-mm(8),l1Y+mm(1.5)+mm(p.d)-1);registerHit('oled',cx-mm(p.w)/2,l1Y+mm(1.5),mm(p.w),mm(p.d));if(isSelected('oled'))selectionGlow(cx-mm(p.w)/2,l1Y+mm(1.5),mm(p.w),mm(p.d),C.blue);}
+  if(isVisible('led')){const p=L.components.led.props;ctx.beginPath();ctx.arc(cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2,0,Math.PI*2);ctx.fillStyle='#fef9c3';ctx.fill();ctx.strokeStyle=C.amber;ctx.lineWidth=1;ctx.stroke();ctx.beginPath();ctx.arc(cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2+5,0,Math.PI*2);ctx.fillStyle='rgba(245,166,35,0.08)';ctx.fill();registerHitCircle('led',cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2);if(isSelected('led'))selectionGlowCircle(cx+mm(28),l1Y+mm(L.lid.l1)/2,mm(p.diameter)/2,C.amber);}
+  if(isVisible('mouth')){const p=L.components.mouth.props;const mCX=cx-mm(22);ctx.fillStyle=C.bg;ctx.fillRect(mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2);hatch(mCX-mm(p.diameter)/2,l1Y,mm(p.diameter),mm(L.lid.l1));ctx.strokeStyle=C.white;ctx.lineWidth=1;ctx.strokeRect(mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2);registerHit('mouth',mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2);if(isSelected('mouth'))selectionGlow(mCX-mm(p.diameter)/2,l1Y-1,mm(p.diameter),mm(L.lid.l1)+2,C.white);}
+  if(isVisible('probe')){const p=L.components.probe.props;rrect(cx-mm(p.diameter)/2,rimY,mm(p.diameter),mm(p.length),3,hex(C.red,0.3),C.red,1.8);registerHit('probe',cx-mm(p.diameter)/2,rimY,mm(p.diameter),mm(p.length));if(isSelected('probe'))selectionGlow(cx-mm(p.diameter)/2,rimY,mm(p.diameter),mm(p.length),C.red);}
+
+  // Callout lines
+  const lx=cx+lW+16;
+  [[l1Y+mm(L.lid.l1)/2,`Top ${L.lid.l1}mm  OLED + LED + mouth`,C.purple],
+   [l2Y+mm(L.lid.l2)/2,`Middle ${L.lid.l2}mm  Nano + LiPo + USB-C`,C.purple],
+   [l3Y+mm(L.lid.l3)/2,`Bottom ${L.lid.l3}mm  silicone grip ring`,C.teal],
+   [rimY+mm(15),`DS18B20  ${state.components.probe.props.length}mm into drink`,C.red],
+  ].forEach(([y,lbl,col])=>{
+    ctx.strokeStyle=hex(col,0.4); ctx.lineWidth=0.6;
+    ctx.beginPath();ctx.moveTo(cx+lW,y);ctx.lineTo(lx,y);ctx.stroke();
+    mono(9); ctx.fillStyle=col; ctx.textAlign='left';
+    ctx.fillText(lbl,lx+4,y+3);
+  });
+
+  // Dims
+  dimH(cx-lW,cx+lW,l1Y-26,`${state.lid.outerDia}mm outer`,C.fg,true);
+  dimH(cx-rimR,cx+rimR,l1Y-12,`${state.components.ring.props.maxDia}mm cup rim`,C.teal,true);
+  dimV(cx+lW+98,l1Y,rimY,`${state.lid.height}mm`,C.purple);
+  dimV(cx+lW+98,rimY,bY,'cup ~95mm','rgba(160,120,70,0.6)');
+
+  // Overhang
+  const ovH=(state.lid.outerDia-state.components.ring.props.maxDia)/2;
+  ctx.strokeStyle=C.orange; ctx.lineWidth=0.8; ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(cx+rimR,l3Y);ctx.lineTo(cx+rimR,l3Y-16);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+lW,l3Y);ctx.lineTo(cx+lW,l3Y-16);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(cx+rimR,l3Y-14);ctx.lineTo(cx+lW,l3Y-14);ctx.stroke();
+  mono(8); ctx.fillStyle=C.orange; ctx.textAlign='center';
+  ctx.fillText(`${ovH}mm`,(cx+rimR+cx+lW)/2,l3Y-18);
+
+  sans(11,'500'); ctx.fillStyle=C.muted; ctx.textAlign='left';
+  ctx.fillText('ON CUP — lid on 12oz Sydney takeaway',20,28);
+}
+
+// ════════════════════════════════════════════════════════════
+// UI: COMPONENT TREE
+// ════════════════════════════════════════════════════════════
+function buildTree(){
+  const tree=document.getElementById('component-tree');
+  const groups={};
+  Object.entries(state.components).forEach(([id,comp])=>{
+    if(!groups[comp.group]) groups[comp.group]=[];
+    groups[comp.group].push([id,comp]);
+  });
+
+  let html='';
+  Object.entries(groups).forEach(([grp,items])=>{
+    const lClass=grp==='Layer 1'?'l1':grp==='Layer 2'?'l2':'l3';
+    const allVis=items.every(([,c])=>c.visible);
+    html+=`<div class="tree-group">
+      <div class="tree-layer ${lClass}" onclick="toggleGroup('${grp}')">
+        <span>${grp}</span>
+        <span style="font-size:9px;color:var(--muted);margin-left:auto;margin-right:4px">${items.length} items</span>
+      </div>`;
+    items.forEach(([id,comp])=>{
+      const sel=state.selectedId===id?'selected':'';
+      html+=`<div class="tree-item ${sel}" id="tree-${id}" onclick="selectComp('${id}')">
+        <span class="tree-dot" style="background:${comp.color}"></span>
+        <span>${comp.name}</span>
+        <span class="vis-toggle ${comp.visible?'on':'off'}" onclick="event.stopPropagation();toggleVis('${id}')">
+          ${comp.visible?'●':'○'}
+        </span>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  // Lid overall
+  html=`<div class="tree-group">
+    <div class="tree-layer" style="color:var(--text)" onclick="selectComp('lid')">
+      <span class="tree-dot" style="background:var(--muted)"></span>
+      <span>Lid Shell</span>
+    </div>
+  </div>`+html;
+  tree.innerHTML=html;
+}
+
+function toggleGroup(grp){
+  const items=Object.entries(state.components).filter(([,c])=>c.group===grp);
+  const allVis=items.every(([,c])=>c.visible);
+  items.forEach(([id])=>{ state.components[id].visible=!allVis; });
+  buildTree(); draw();
+}
+
+function toggleVis(id){
+  state.components[id].visible=!state.components[id].visible;
+  buildTree(); draw();
+  autoSave();
+}
+
+function toggleAll(v){
+  Object.keys(state.components).forEach(id=>{ state.components[id].visible=v; });
+  buildTree(); draw(); autoSave();
+}
+
+// ════════════════════════════════════════════════════════════
+// UI: SELECT + PROPERTIES PANEL
+// ════════════════════════════════════════════════════════════
+function selectComp(id){
+  state.selectedId=id;
+  buildTree();
+  buildProps(id);
+  document.getElementById('status-msg').textContent=`Selected: ${id==='lid'?'Lid Shell':state.components[id]?.name||id}`;
+  draw();
+}
+
+function buildProps(id){
+  const panel=document.getElementById('props-panel');
+  if(!id){panel.innerHTML=`<div class="empty-props"><div class="icon">⊡</div>Click any component<br>to edit its dimensions</div>`;return;}
+
+  if(id==='lid'){
+    const L=state.lid;
+    panel.innerHTML=`
+      <div class="prop-section">
+        <div class="prop-name">Lid Shell</div>
+        <div class="prop-layer">Overall dimensions</div>
+        <div class="dim-grid">
+          ${dimField('Outer Dia (mm)','lid_outerDia',L.outerDia,'full')}
+          ${dimField('Total Height (mm)','lid_height',L.height,'full')}
+          ${dimField('Layer 1 Top (mm)','lid_l1',L.l1,'')}
+          ${dimField('Layer 2 Mid (mm)','lid_l2',L.l2,'')}
+          ${dimField('Layer 3 Bot (mm)','lid_l3',L.l3,'')}
+        </div>
+      </div>
+      <div class="prop-section">
+        <h3>Notes</h3>
+        <textarea class="note-area" placeholder="Add a note about this component..." oninput="updateNote('lid',this.value)">${L.note||''}</textarea>
+      </div>
+      ${specBlock([
+        ['Material','Silicone / TPU',''],
+        ['Wall thickness','5mm min','t'],
+        ['OLED backing','3mm',''],
+        ['Resistor','4.7kΩ pull-up','a'],
+      ])}
+    `;
+    return;
+  }
+
+  const comp=state.components[id];
+  if(!comp) return;
+
+  const fields=Object.entries(comp.props).map(([k,v])=>{
+    const label=k==='w'?'Width (mm)':k==='h'?'Height (mm)':k==='d'?'Depth (mm)':k==='diameter'?'Diameter (mm)':k==='length'?'Length (mm)':k==='minDia'?'Min Dia (mm)':k==='maxDia'?'Max Dia (mm)':k==='thickness'?'Thickness (mm)':k==='depth'?'Depth (mm)':k;
+    return dimField(label,`comp_${id}_${k}`,v,'');
+  }).join('');
+
+  panel.innerHTML=`
+    <div class="prop-section">
+      <div class="prop-name" style="color:${comp.color}">${comp.name}</div>
+      <div class="prop-layer">${comp.group}</div>
+      <div class="dim-grid">${fields}</div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn" onclick="toggleVis('${id}')">${comp.visible?'👁 Hide':'👁 Show'}</button>
+        <button class="btn" onclick="askAbout('${id}')">✦ Ask AI</button>
+      </div>
+    </div>
+    <div class="prop-section">
+      <h3>Component Note</h3>
+      <textarea class="note-area" placeholder="Add engineering notes..." oninput="updateNote('${id}',this.value)">${comp.note||''}</textarea>
+    </div>
+    ${specBlock(getSpecRows(id,comp))}
+  `;
+}
+
+function dimField(label,key,value,cls){
+  return `<div class="dim-field ${cls}">
+    <label>${label}</label>
+    <input type="number" value="${value}" onchange="updateDim('${key}',parseFloat(this.value))" step="0.5" min="0.5">
+  </div>`;
+}
+
+function specBlock(rows){
+  return `<div class="prop-section"><h3>Quick Specs</h3>${rows.map(([k,v,c])=>`<div class="spec-row"><span class="sk">${k}</span><span class="sv ${c||''}">${v}</span></div>`).join('')}</div>`;
+}
+
+function getSpecRows(id,comp){
+  const p=comp.props;
+  const rows=[['Component',id,''],['Group',comp.group,'']];
+  if(p.w) rows.push(['Footprint',`${p.w}×${p.h}mm`,'']);
+  if(p.d) rows.push(['Depth/Height',`${p.d}mm`,'']);
+  if(p.diameter) rows.push(['Diameter',`Ø${p.diameter}mm`,'t']);
+  if(p.length) rows.push(['Length',`${p.length}mm`,'a']);
+  if(p.minDia) rows.push(['Flex range',`${p.minDia}–${p.maxDia}mm`,'t']);
+  return rows;
+}
+
+function updateDim(key,val){
+  if(isNaN(val)||val<=0) return;
+  if(key.startsWith('lid_')){
+    const k=key.replace('lid_','');
+    state.lid[k]=val;
+    updateHeaderChips();
+  } else {
+    const parts=key.split('_');// comp_id_prop
+    const id=parts[1], prop=parts[2];
+    if(state.components[id]) state.components[id].props[prop]=val;
+  }
+  draw(); autoSave();
+}
+
+function updateNote(id,val){
+  if(id==='lid') state.lid.note=val;
+  else if(state.components[id]) state.components[id].note=val;
+  autoSave();
+}
+
+function updateHeaderChips(){
+  document.getElementById('chip-outer').textContent=`Ø${state.lid.outerDia}mm outer`;
+  document.getElementById('chip-height').textContent=`${state.lid.height}mm height`;
+  document.getElementById('chip-rim').textContent=`${state.components.ring.props.minDia}–${state.components.ring.props.maxDia}mm rim`;
+  document.getElementById('chip-mouth').textContent=`Ø${state.components.mouth.props.diameter}mm mouth`;
+}
+
+// ════════════════════════════════════════════════════════════
+// GLOBAL NOTES
+// ════════════════════════════════════════════════════════════
+function addGlobalNote(){
+  state.globalNotes.push('');
+  renderGlobalNotes();
+  autoSave();
+}
+
+function renderGlobalNotes(){
+  const el=document.getElementById('global-notes');
+  el.innerHTML=state.globalNotes.map((n,i)=>`
+    <div class="global-note">
+      <span class="del" onclick="deleteNote(${i})">✕</span>
+      <textarea style="background:transparent;border:none;outline:none;width:calc(100% - 16px);font-family:var(--font-mono);font-size:9.5px;color:var(--amber);resize:vertical;min-height:40px;line-height:1.5" placeholder="Write a note..." oninput="editNote(${i},this.value)">${n}</textarea>
+    </div>
+  `).join('');
+}
+
+function editNote(i,v){ state.globalNotes[i]=v; autoSave(); }
+function deleteNote(i){ state.globalNotes.splice(i,1); renderGlobalNotes(); autoSave(); }
+
+// ════════════════════════════════════════════════════════════
+// VIEW SWITCHING
+// ════════════════════════════════════════════════════════════
+function switchView(v,el){
+  state.view=v;
+  document.querySelectorAll('.vtab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  draw();
+}
+
+// ════════════════════════════════════════════════════════════
+// CANVAS EVENTS
+// ════════════════════════════════════════════════════════════
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(canvas.width/dpr/r.width);
+  const y=(e.clientY-r.top)*(canvas.height/dpr/r.height);
+  const id=hitTest(x,y);
+  if(id) selectComp(id);
+  else { state.selectedId=null; buildProps(null); buildTree(); draw(); }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const r=canvas.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(canvas.width/dpr/r.width);
+  const y=(e.clientY-r.top)*(canvas.height/dpr/r.height);
+  const id=hitTest(x,y);
+  const tip=document.getElementById('tooltip');
+  if(id && id!==hoveredId){
+    hoveredId=id;
+    canvas.style.cursor='pointer';
+    const name=id==='lid'?'Lid Shell':id.startsWith('l')?`Layer ${id[1]}`:state.components[id]?.name||id;
+    tip.textContent=name+(state.components[id]?` — click to edit`:'');
+    tip.style.display='block';
+    draw();
+  } else if(!id && hoveredId){
+    hoveredId=null;
+    canvas.style.cursor='crosshair';
+    tip.style.display='none';
+    draw();
+  }
+  if(tip.style.display!=='none'){
+    tip.style.left=(e.clientX+14)+'px';
+    tip.style.top=(e.clientY-20)+'px';
+  }
+  document.getElementById('cursor-pos').textContent=`x: ${Math.round(x)}  y: ${Math.round(y)}  —  ${id||'background'}`;
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  document.getElementById('tooltip').style.display='none';
+  hoveredId=null; draw();
+});
+
+// ════════════════════════════════════════════════════════════
+// AI ASSISTANT
+// ════════════════════════════════════════════════════════════
+let aiOpen=false;
+function toggleAI(){
+  aiOpen=!aiOpen;
+  document.getElementById('ai-panel').classList.toggle('open',aiOpen);
+}
+
+function getDesignContext(){
+  return `You are an AI design assistant for a student's engineering prototype project.
+Project: Smart Temperature Lid for coffee cups
+The lid has an Arduino Nano, DS18B20 temperature sensor, OLED display (SSD1306), LiPo battery, USB-C charging.
+
+Current dimensions:
+- Lid outer diameter: ${state.lid.outerDia}mm
+- Total height: ${state.lid.height}mm
+- Layer 1 (top/UI): ${state.lid.l1}mm
+- Layer 2 (middle/electronics): ${state.lid.l2}mm  
+- Layer 3 (bottom/grip): ${state.lid.l3}mm
+
+Components: ${JSON.stringify(Object.fromEntries(Object.entries(state.components).map(([id,c])=>[id,{name:c.name,props:c.props}])))}
+
+The lid fits Sydney cafe cups: 8oz (80mm rim), 12oz/16oz (90mm rim).
+Silicone ring flexes between ${state.components.ring.props.minDia}–${state.components.ring.props.maxDia}mm.
+Mouth opening is ${state.components.mouth.props.diameter}mm open hole for drinking.
+
+Be helpful, concise, and specific to this project. Use mm dimensions when relevant.`;
+}
+
+async function sendAI(){
+  const input=document.getElementById('ai-in');
+  const msg=input.value.trim();
+  if(!msg) return;
+  input.value='';
+  addAIMsg(msg,'user');
+  const thinkId=addAIMsg('Thinking...','ai thinking');
+  try{
+    const history=state.aiHistory.slice(-6);
+    history.push({role:'user',content:msg});
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:getDesignContext(),
+        messages:history
+      })
+    });
+    const data=await res.json();
+    const reply=data.content?.[0]?.text||'Sorry, I could not get a response.';
+    document.getElementById(thinkId).remove();
+    addAIMsg(reply,'ai');
+    state.aiHistory.push({role:'user',content:msg},{role:'assistant',content:reply});
+    if(state.aiHistory.length>20) state.aiHistory=state.aiHistory.slice(-20);
+  }catch(err){
+    document.getElementById(thinkId).remove();
+    addAIMsg('Error reaching AI. Check your connection and try again.','ai');
+  }
+}
+
+function addAIMsg(text,cls){
+  const msgs=document.getElementById('ai-msgs');
+  const id='msg-'+Date.now()+Math.random();
+  const div=document.createElement('div');
+  div.className='msg '+cls; div.id=id;
+  div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  return id;
+}
+
+function quickAsk(q){
+  document.getElementById('ai-in').value=q;
+  sendAI();
+  if(!aiOpen) toggleAI();
+}
+
+function askAbout(id){
+  const comp=state.components[id];
+  if(!comp) return;
+  quickAsk(`Tell me about the ${comp.name} in this design and suggest a good engineering note for it.`);
+}
+
+// ════════════════════════════════════════════════════════════
+// PERSISTENCE
+// ════════════════════════════════════════════════════════════
+let saveTimer;
+function autoSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveState,1000); }
+
+function saveState(){
+  try{
+    localStorage.setItem('smartLidCAD',JSON.stringify({
+      lid:state.lid, components:state.components, globalNotes:state.globalNotes
+    }));
+    document.getElementById('status-msg').textContent='Saved ✓';
+    setTimeout(()=>document.getElementById('status-msg').textContent='',2000);
+  }catch(e){}
+}
+
+function loadState(){
+  try{
+    const saved=localStorage.getItem('smartLidCAD');
+    if(saved){
+      const data=JSON.parse(saved);
+      if(data.lid) state.lid=Object.assign({},DEFAULT_STATE.lid,data.lid);
+      if(data.components){
+        Object.entries(data.components).forEach(([id,saved])=>{
+          if(state.components[id]){
+            state.components[id]=Object.assign({},state.components[id],saved);
+          }
+        });
+      }
+      if(data.globalNotes) state.globalNotes=data.globalNotes;
+    }
+  }catch(e){}
+}
+
+function resetState(){
+  if(!confirm('Reset all dimensions and notes to default?')) return;
+  localStorage.removeItem('smartLidCAD');
+  state=JSON.parse(JSON.stringify(DEFAULT_STATE));
+  buildTree(); renderGlobalNotes(); buildProps(null);
+  updateHeaderChips(); draw();
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+buildTree();
+renderGlobalNotes();
+updateHeaderChips();
+window.addEventListener('resize',resize);
+resize();
+</script>
+</body>
+</html>
